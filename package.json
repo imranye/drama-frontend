@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:pages": "next build",
     "start": "next start",
+    "preview": "npx serve@latest out",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
