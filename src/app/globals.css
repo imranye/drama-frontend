@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-text-disabled;
+  }
+  
+  body {
+    @apply bg-background text-text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Smooth snap scrolling for vertical video feed */
+  .snap-container {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+  
+  .snap-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-surface rounded-xl p-4;
+  }
+  
+  .input {
+    @apply w-full px-4 py-3 bg-surface border border-text-disabled rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent transition-colors;
+  }
+}
+
+/* Video player controls overlay */
+.video-overlay {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 30%,
+    transparent 50%
+  );
+}
