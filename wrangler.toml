@@ -1,0 +1,19 @@
+name = "drama-frontend"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "out"
+
+[build]
+command = "npm run build:pages"
+
+[build.environment]
+NODE_VERSION = "20"
+
+# Environment variables for Cloudflare Pages
+# Set these in the Cloudflare Pages dashboard under Settings > Environment Variables
+# NEXT_PUBLIC_API_URL = "https://drama-backend.your-worker.workers.dev"
+
+[env.production]
+# Production-specific configuration
+
+[env.preview]
+# Preview/staging-specific configuration
