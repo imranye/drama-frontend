@@ -35,7 +35,20 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await apiClient.login(email, password);
+          let response;
+          try {
+            response = await apiClient.login(email, password);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : '';
+            const isDemoCredentials =
+              email.toLowerCase() === 'demo@drama.app' && password === 'demo123';
+
+            if (isDemoCredentials && message.toLowerCase().includes('unauthorized')) {
+              response = await apiClient.register(email, password);
+            } else {
+              throw error;
+            }
+          }
           
           const user: User = {
             userId: response.userId,

@@ -32,14 +32,12 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+    const headers = new Headers(options.headers);
+    headers.set('Content-Type', 'application/json');
 
     // Add JWT token if available
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers.set('Authorization', `Bearer ${this.token}`);
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
