@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { VideoPlayer } from './video-player';
 import type { Episode, Story } from '@/types';
-import { useAuthStore } from '@/lib/store';
 
 interface FeedScrollProps {
   episodes: Episode[];
   story: Story;
+  userId: string;
+  freeEpisodeCount: number;
+  requireLoginForLockedEpisodes: boolean;
   currentIndex: number;
   onIndexChange: (index: number) => void;
   onUnlock: (episodeId: string) => void;
@@ -16,13 +18,15 @@ interface FeedScrollProps {
 export function FeedScroll({
   episodes,
   story,
+  userId,
+  freeEpisodeCount,
+  requireLoginForLockedEpisodes,
   currentIndex,
   onIndexChange,
   onUnlock,
 }: FeedScrollProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [touchStartY, setTouchStartY] = useState(0);
-  const { user } = useAuthStore();
 
   // Snap scrolling to current episode
   useEffect(() => {
@@ -94,15 +98,12 @@ export function FeedScroll({
   };
 
   const checkIsLocked = (episode: Episode): boolean => {
-    // Episodes 1-5 are free (demo/hook period)
-    if (episode.sequenceNumber <= 5) return false;
+    if (episode.sequenceNumber <= freeEpisodeCount) return false;
     
     // Check if episode is unlocked (this would come from narrative state in real implementation)
     // For now, all episodes after 5 are locked
     return true;
   };
-
-  if (!user) return null;
 
   return (
     <div
@@ -119,8 +120,9 @@ export function FeedScroll({
         >
           <VideoPlayer
             episode={episode}
-            userId={user.userId}
+            userId={userId}
             isLocked={checkIsLocked(episode)}
+            requireLoginForLockedEpisode={requireLoginForLockedEpisodes}
             onUnlock={() => onUnlock(episode.episodeId)}
             onNext={handleNext}
             onPrevious={handlePrevious}

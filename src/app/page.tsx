@@ -2,19 +2,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/feed');
-    } else {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router]);
+    router.push('/feed');
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

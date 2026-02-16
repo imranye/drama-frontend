@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   episode: Episode;
   userId: string;
   isLocked: boolean;
+  requireLoginForLockedEpisode: boolean;
   onUnlock: () => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -19,6 +20,7 @@ export function VideoPlayer({
   episode,
   userId,
   isLocked,
+  requireLoginForLockedEpisode,
   onUnlock,
   onNext,
   onPrevious,
@@ -175,11 +177,11 @@ export function VideoPlayer({
           </div>
 
           <button onClick={onUnlock} className="btn-primary">
-            Unlock with {episode.tokenCost} coins
+            {requireLoginForLockedEpisode ? 'Sign in to continue' : `Unlock with ${episode.tokenCost} coins`}
           </button>
 
           <p className="text-sm text-text-secondary">
-            Watch ads to earn coins
+            {requireLoginForLockedEpisode ? 'Create an account to keep watching' : 'Watch ads to earn coins'}
           </p>
         </div>
       </div>

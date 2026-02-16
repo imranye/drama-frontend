@@ -7,33 +7,55 @@ import { FeedScroll } from '@/components/feed-scroll';
 import { TokenBalance } from '@/components/token-balance';
 import { useAuthStore } from '@/lib/store';
 import { apiClient, queryKeys } from '@/lib/api';
-import type { Episode, Story, UnlockRequest } from '@/types';
+import type { UnlockRequest } from '@/types';
 
 export default function FeedPage() {
   const router = useRouter();
   const { isAuthenticated, user, balance, updateBalance } = useAuthStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedStoryId] = useState('story-1'); // Default story for MVP
+  const [guestUserId, setGuestUserId] = useState<string | null>(null);
+  const [isCreatingGuest, setIsCreatingGuest] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
 
-  // Redirect if not authenticated
+  // Create an anonymous preview session for unauthenticated users
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router]);
+    if (isAuthenticated || guestUserId || isCreatingGuest) return;
+
+    const createGuestSession = async () => {
+      setIsCreatingGuest(true);
+      setGuestError(null);
+
+      try {
+        const response = await apiClient.guest();
+        apiClient.setToken(response.token);
+        setGuestUserId(response.userId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to start free preview';
+        setGuestError(message);
+      } finally {
+        setIsCreatingGuest(false);
+      }
+    };
+
+    createGuestSession();
+  }, [isAuthenticated, guestUserId, isCreatingGuest]);
+
+  const playbackUserId = isAuthenticated ? user?.userId ?? null : guestUserId;
+  const canLoadContent = Boolean(playbackUserId);
 
   // Fetch story episodes
   const { data: episodes, isLoading: loadingEpisodes } = useQuery({
     queryKey: queryKeys.episodes(selectedStoryId),
     queryFn: () => apiClient.getStoryEpisodes(selectedStoryId),
-    enabled: isAuthenticated,
+    enabled: canLoadContent,
   });
 
   // Fetch story details
   const { data: story } = useQuery({
     queryKey: queryKeys.story(selectedStoryId),
     queryFn: () => apiClient.getStory(selectedStoryId),
-    enabled: isAuthenticated,
+    enabled: canLoadContent,
   });
 
   // Unlock episode mutation
@@ -67,6 +89,13 @@ export default function FeedPage() {
   });
 
   const handleUnlock = (episodeId: string) => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+
+    if (!user) return;
+
     const episode = episodes?.find((e) => e.episodeId === episodeId);
     if (!episode) return;
 
@@ -83,11 +112,20 @@ export default function FeedPage() {
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return null;
+  if (guestError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <p className="text-text-secondary">{guestError}</p>
+          <button onClick={() => router.push('/login')} className="btn-primary">
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  if (loadingEpisodes) {
+  if (!canLoadContent || loadingEpisodes) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -110,11 +148,14 @@ export default function FeedPage() {
 
   return (
     <div className="relative">
-      <TokenBalance />
+      {isAuthenticated && <TokenBalance />}
       
       <FeedScroll
         episodes={episodes}
         story={story || { storyId: selectedStoryId, title: 'Loading...', description: '', thumbnailUrl: '', episodeCount: episodes.length, totalDuration: 0, genres: [], trending: false }}
+        userId={playbackUserId!}
+        freeEpisodeCount={isAuthenticated ? 5 : 1}
+        requireLoginForLockedEpisodes={!isAuthenticated}
         currentIndex={currentIndex}
         onIndexChange={setCurrentIndex}
         onUnlock={handleUnlock}

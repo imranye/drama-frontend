@@ -28,7 +28,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo/Brand */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-accent mb-2">Drama</h1>
+          <h1 className="text-4xl font-bold text-accent mb-2">Cliffhanger</h1>
           <p className="text-text-secondary">
             Binge-worthy vertical video stories
           </p>
@@ -91,7 +91,7 @@ export default function LoginPage() {
         <div className="text-center text-text-secondary text-sm space-y-2">
           <p>Demo Account:</p>
           <p className="font-mono text-xs">
-            demo@drama.app / demo123
+            demo@cliffhanger.gg / demo123
           </p>
         </div>
 

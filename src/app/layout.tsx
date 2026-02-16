@@ -3,8 +3,8 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Drama - Vertical Video Stories',
-  description: 'Binge-worthy vertical video dramas',
+  title: 'Cliffhanger - Vertical Video Stories',
+  description: 'Binge-worthy vertical video cliffhangers',
   viewport: {
     width: 'device-width',
     initialScale: 1,

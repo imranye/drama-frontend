@@ -70,6 +70,12 @@ class ApiClient {
     });
   }
 
+  async guest(): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/auth/guest', {
+      method: 'POST',
+    });
+  }
+
   // Content Discovery
   async getContent(
     type: 'trending' | 'new' | 'recommended' | 'continue' = 'trending',

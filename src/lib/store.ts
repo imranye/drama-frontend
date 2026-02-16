@@ -41,7 +41,8 @@ export const useAuthStore = create<AuthState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : '';
             const isDemoCredentials =
-              email.toLowerCase() === 'demo@drama.app' && password === 'demo123';
+              ['demo@drama.app', 'demo@cliffhanger.gg'].includes(email.toLowerCase()) &&
+              password === 'demo123';
 
             if (isDemoCredentials && message.toLowerCase().includes('unauthorized')) {
               response = await apiClient.register(email, password);
