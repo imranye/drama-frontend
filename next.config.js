@@ -19,7 +19,8 @@ const nextConfig = {
   trailingSlash: true,
   
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://drama-backend.your-worker.workers.dev',
+    NEXT_PUBLIC_API_URL:
+      process.env.NEXT_PUBLIC_API_URL || 'https://drama-backend.imuthuvappa.workers.dev',
   },
 }
 

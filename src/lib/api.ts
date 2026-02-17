@@ -14,7 +14,8 @@ import type {
   UnlockResponse,
 } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drama-backend.your-worker.workers.dev';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'https://drama-backend.imuthuvappa.workers.dev';
 
 class ApiClient {
   private baseUrl: string;
