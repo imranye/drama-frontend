@@ -12,6 +12,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  hasHydrated: boolean;
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
@@ -20,6 +21,7 @@ interface AuthState {
   updateBalance: (balance: number) => void;
   fetchBalance: () => Promise<void>;
   clearError: () => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      hasHydrated: false,
 
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -111,6 +114,10 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => {
         set({ error: null });
       },
+
+      setHasHydrated: (value: boolean) => {
+        set({ hasHydrated: value });
+      },
     }),
     {
       name: 'drama-auth-storage',
@@ -125,6 +132,15 @@ export const useAuthStore = create<AuthState>()(
         if (state?.token) {
           apiClient.setToken(state.token);
         }
+
+        // Migrate away from old persisted "guest as authenticated" sessions.
+        // A guest session uses an empty email; treat it as logged out.
+        if (state?.user && !state.user.email) {
+          state.logout();
+        }
+
+        // Mark hydration as complete
+        state?.setHasHydrated(true);
       },
     }
   )
