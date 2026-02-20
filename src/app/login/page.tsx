@@ -73,7 +73,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-none text-sm">
               {error}
             </div>
           )}
@@ -98,7 +98,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center text-text-secondary text-xs space-y-2">
           <p>
-            Don't have an account?{' '}
+            Don’t have an account?{' '}
             <button className="text-accent hover:underline">
               Sign up
             </button>

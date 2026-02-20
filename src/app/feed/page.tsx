@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FeedScroll } from '@/components/feed-scroll';
 import { TokenBalance } from '@/components/token-balance';
 import { useAuthStore } from '@/lib/store';
@@ -11,52 +11,39 @@ import type { UnlockRequest } from '@/types';
 
 export default function FeedPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated, user, balance, updateBalance } = useAuthStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedStoryId] = useState('story-1'); // Default story for MVP
-  const [guestUserId, setGuestUserId] = useState<string | null>(null);
-  const [isCreatingGuest, setIsCreatingGuest] = useState(false);
-  const [guestError, setGuestError] = useState<string | null>(null);
+  const [optimisticUnlocked, setOptimisticUnlocked] = useState<Set<string>>(() => new Set());
 
-  // Create an anonymous preview session for unauthenticated users
-  useEffect(() => {
-    if (isAuthenticated || guestUserId || isCreatingGuest) return;
-
-    const createGuestSession = async () => {
-      setIsCreatingGuest(true);
-      setGuestError(null);
-
-      try {
-        const response = await apiClient.guest();
-        apiClient.setToken(response.token);
-        setGuestUserId(response.userId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to start free preview';
-        setGuestError(message);
-      } finally {
-        setIsCreatingGuest(false);
-      }
-    };
-
-    createGuestSession();
-  }, [isAuthenticated, guestUserId, isCreatingGuest]);
-
-  const playbackUserId = isAuthenticated ? user?.userId ?? null : guestUserId;
-  const canLoadContent = Boolean(playbackUserId);
+  // Public preview: we don't require a guest JWT for episode 1.
+  const playbackUserId = user?.userId ?? 'public';
 
   // Fetch story episodes
   const { data: episodes, isLoading: loadingEpisodes } = useQuery({
     queryKey: queryKeys.episodes(selectedStoryId),
     queryFn: () => apiClient.getStoryEpisodes(selectedStoryId),
-    enabled: canLoadContent,
   });
 
   // Fetch story details
   const { data: story } = useQuery({
     queryKey: queryKeys.story(selectedStoryId),
     queryFn: () => apiClient.getStory(selectedStoryId),
-    enabled: canLoadContent,
   });
+
+  // Fetch narrative (unlocked episodes). Backend will auto-init if missing.
+  const { data: narrative } = useQuery({
+    queryKey: queryKeys.narrative(selectedStoryId),
+    queryFn: () => apiClient.getNarrativeState(selectedStoryId),
+    enabled: isAuthenticated,
+  });
+
+  const unlockedEpisodeIds = useMemo(() => {
+    const ids = new Set<string>(narrative?.unlockedEpisodes ?? []);
+    for (const id of optimisticUnlocked) ids.add(id);
+    return Array.from(ids);
+  }, [narrative?.unlockedEpisodes, optimisticUnlocked]);
 
   // Unlock episode mutation
   const unlockMutation = useMutation({
@@ -77,7 +64,17 @@ export default function FeedPage() {
     },
     onSuccess: (data) => {
       // Update balance after successful unlock
-      updateBalance(data.remainingTokens);
+      if (typeof data.remainingTokens === 'number') {
+        updateBalance(data.remainingTokens);
+      }
+
+      setOptimisticUnlocked((prev) => {
+        const next = new Set(prev);
+        next.add(data.episodeId);
+        return next;
+      });
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.narrative(selectedStoryId) });
       
       // Optionally show success message
       console.log('Episode unlocked successfully');
@@ -112,23 +109,10 @@ export default function FeedPage() {
     }
   };
 
-  if (guestError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <p className="text-text-secondary">{guestError}</p>
-          <button onClick={() => router.push('/login')} className="btn-primary">
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!canLoadContent || loadingEpisodes) {
+  if (loadingEpisodes) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
       </div>
     );
   }
@@ -153,12 +137,14 @@ export default function FeedPage() {
       <FeedScroll
         episodes={episodes}
         story={story || { storyId: selectedStoryId, title: 'Loading...', description: '', thumbnailUrl: '', episodeCount: episodes.length, totalDuration: 0, genres: [], trending: false }}
-        userId={playbackUserId!}
-        freeEpisodeCount={isAuthenticated ? 5 : 1}
+        userId={playbackUserId}
+        freeEpisodeCount={3}
+        unlockedEpisodeIds={unlockedEpisodeIds}
         requireLoginForLockedEpisodes={!isAuthenticated}
         currentIndex={currentIndex}
         onIndexChange={setCurrentIndex}
         onUnlock={handleUnlock}
+        isReady={true}
       />
     </div>
   );

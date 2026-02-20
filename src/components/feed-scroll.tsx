@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { VideoPlayer } from './video-player';
 import type { Episode, Story } from '@/types';
 
@@ -9,10 +9,12 @@ interface FeedScrollProps {
   story: Story;
   userId: string;
   freeEpisodeCount: number;
+  unlockedEpisodeIds?: string[];
   requireLoginForLockedEpisodes: boolean;
   currentIndex: number;
   onIndexChange: (index: number) => void;
   onUnlock: (episodeId: string) => void;
+  isReady?: boolean;
 }
 
 export function FeedScroll({
@@ -20,13 +22,17 @@ export function FeedScroll({
   story,
   userId,
   freeEpisodeCount,
+  unlockedEpisodeIds = [],
   requireLoginForLockedEpisodes,
   currentIndex,
   onIndexChange,
   onUnlock,
+  isReady = true,
 }: FeedScrollProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [touchStartY, setTouchStartY] = useState(0);
+
+  const unlockedSet = useMemo(() => new Set(unlockedEpisodeIds), [unlockedEpisodeIds]);
 
   // Snap scrolling to current episode
   useEffect(() => {
@@ -99,11 +105,18 @@ export function FeedScroll({
 
   const checkIsLocked = (episode: Episode): boolean => {
     if (episode.sequenceNumber <= freeEpisodeCount) return false;
-    
-    // Check if episode is unlocked (this would come from narrative state in real implementation)
-    // For now, all episodes after 5 are locked
-    return true;
+
+    return !unlockedSet.has(episode.episodeId);
   };
+
+  // Show loading state while token is being prepared
+  if (!isReady) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-black">
+        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -120,6 +133,7 @@ export function FeedScroll({
         >
           <VideoPlayer
             episode={episode}
+            storyDescription={story.description}
             userId={userId}
             isLocked={checkIsLocked(episode)}
             requireLoginForLockedEpisode={requireLoginForLockedEpisodes}
@@ -134,7 +148,7 @@ export function FeedScroll({
       {currentIndex === episodes.length - 1 && (
         <div className="absolute bottom-20 inset-x-0 text-center">
           <p className="text-text-secondary text-sm">
-            You've reached the end
+            You’ve reached the end
           </p>
         </div>
       )}

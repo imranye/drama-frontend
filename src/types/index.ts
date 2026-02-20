@@ -12,6 +12,10 @@ export interface Episode {
   storyId: string;
   sequenceNumber: number;
   title: string;
+  description?: string;
+  previewText?: string;
+  transcript?: string;
+  script?: string;
   duration: number;
   thumbnailUrl?: string;
   videoUrl?: string;

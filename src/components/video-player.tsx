@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api';
 
 interface VideoPlayerProps {
   episode: Episode;
+  storyDescription?: string;
   userId: string;
   isLocked: boolean;
   requireLoginForLockedEpisode: boolean;
@@ -18,6 +19,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({
   episode,
+  storyDescription,
   userId,
   isLocked,
   requireLoginForLockedEpisode,
@@ -44,22 +46,29 @@ export function VideoPlayer({
     setBuffering,
   } = useVideoPlayerStore();
 
-  // Fetch video URL
+  // Fetch video URL with retry for guest auth timing
   useEffect(() => {
     if (!isLocked && episode.episodeId) {
-      setIsLoading(true);
-      setError(null);
-      
-      apiClient
-        .getPlaybackUrl(episode.episodeId, userId)
-        .then((response) => {
+      const fetchWithRetry = async (retries = 3) => {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+          const response = await apiClient.getPlaybackUrl(episode.episodeId, userId);
           setVideoUrl(response.videoUrl);
           setIsLoading(false);
-        })
-        .catch((err) => {
-          setError(err.message);
-          setIsLoading(false);
-        });
+        } catch (err: any) {
+          // Retry on 401 (token might not be ready yet)
+          if (err.message?.includes('401') && retries > 0) {
+            setTimeout(() => fetchWithRetry(retries - 1), 500);
+          } else {
+            setError(err.message);
+            setIsLoading(false);
+          }
+        }
+      };
+      
+      fetchWithRetry();
     }
   }, [episode.episodeId, userId, isLocked]);
 
@@ -142,6 +151,21 @@ export function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const truncate = (text: string, max = 140) => {
+    const trimmed = text.trim();
+    if (trimmed.length <= max) return trimmed;
+    return `${trimmed.slice(0, max).trimEnd()}…`;
+  };
+
+  const previewTextRaw =
+    episode.previewText ||
+    episode.description ||
+    episode.transcript ||
+    episode.script ||
+    storyDescription ||
+    '';
+  const previewText = previewTextRaw ? truncate(previewTextRaw, 140) : '';
+
   if (isLocked) {
     return (
       <div className="relative w-full h-screen flex items-center justify-center bg-black">
@@ -155,7 +179,7 @@ export function VideoPlayer({
 
         {/* Lock overlay */}
         <div className="relative z-10 text-center space-y-6 px-6">
-          <div className="w-20 h-20 mx-auto rounded-full bg-surface-light flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto rounded-none bg-surface-light flex items-center justify-center">
             <svg
               className="w-10 h-10 text-text-secondary"
               fill="none"
@@ -174,6 +198,9 @@ export function VideoPlayer({
           <div className="space-y-2">
             <h3 className="text-xl font-bold">{episode.title}</h3>
             <p className="text-text-secondary">Episode {episode.sequenceNumber}</p>
+            {previewText && (
+              <p className="text-sm text-text-secondary">{previewText}</p>
+            )}
           </div>
 
           <button onClick={onUnlock} className="btn-primary">
@@ -204,7 +231,7 @@ export function VideoPlayer({
       {/* Loading State */}
       {(isLoading || isBuffering) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
         </div>
       )}
 
@@ -237,6 +264,9 @@ export function VideoPlayer({
                   <p className="text-sm text-text-secondary">
                     Episode {episode.sequenceNumber}
                   </p>
+                  {previewText && (
+                    <p className="text-xs text-text-secondary mt-1">{previewText}</p>
+                  )}
                 </div>
                 <button className="pointer-events-auto p-2">
                   <svg
@@ -260,7 +290,7 @@ export function VideoPlayer({
             <div className="absolute bottom-0 inset-x-0 p-4 video-overlay">
               {/* Progress Bar */}
               <div className="mb-4">
-                <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-1 bg-white/20 rounded-none overflow-hidden">
                   <div
                     className="h-full bg-accent transition-all duration-200"
                     style={{ width: `${(currentTime / duration) * 100}%` }}
@@ -304,7 +334,7 @@ export function VideoPlayer({
 
                 <button
                   onClick={togglePlayPause}
-                  className="pointer-events-auto p-3 bg-white/10 rounded-full"
+                  className="pointer-events-auto p-3 bg-white/10 rounded-none"
                 >
                   <svg
                     className="w-8 h-8"
@@ -351,7 +381,7 @@ export function VideoPlayer({
             {/* Right Side Actions */}
             <div className="absolute right-4 bottom-32 space-y-6">
               <button className="pointer-events-auto flex flex-col items-center space-y-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-none bg-white/10 flex items-center justify-center">
                   <svg
                     className="w-6 h-6"
                     fill="none"
@@ -370,7 +400,7 @@ export function VideoPlayer({
               </button>
 
               <button className="pointer-events-auto flex flex-col items-center space-y-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-none bg-white/10 flex items-center justify-center">
                   <svg
                     className="w-6 h-6"
                     fill="none"
@@ -389,7 +419,7 @@ export function VideoPlayer({
               </button>
 
               <button className="pointer-events-auto flex flex-col items-center space-y-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-none bg-white/10 flex items-center justify-center">
                   <svg
                     className="w-6 h-6"
                     fill="none"

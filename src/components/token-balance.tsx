@@ -20,7 +20,7 @@ export function TokenBalance() {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed top-4 right-4 z-50 flex items-center space-x-2 bg-surface-light/90 backdrop-blur-sm px-4 py-2 rounded-full"
+      className="fixed top-4 right-4 z-50 flex items-center space-x-2 bg-surface-light/90 backdrop-blur-sm px-4 py-2 rounded-none"
     >
       <svg
         className="w-5 h-5 text-gold"
