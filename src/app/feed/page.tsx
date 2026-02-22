@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FeedScroll } from '@/components/feed-scroll';
 import { TokenBalance } from '@/components/token-balance';
+import { BuyCoinsModal } from '@/components/buy-coins-modal';
 import { useAuthStore } from '@/lib/store';
 import { apiClient, queryKeys } from '@/lib/api';
 import type { UnlockRequest } from '@/types';
@@ -16,6 +17,8 @@ export default function FeedPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedStoryId] = useState('story-1'); // Default story for MVP
   const [optimisticUnlocked, setOptimisticUnlocked] = useState<Set<string>>(() => new Set());
+  const [buyModalOpen, setBuyModalOpen] = useState(false);
+  const [pendingUnlockEpisodeId, setPendingUnlockEpisodeId] = useState<string | null>(null);
 
   // Public preview: we don't require a guest JWT for episode 1.
   const playbackUserId = user?.userId ?? 'public';
@@ -98,8 +101,8 @@ export default function FeedPage() {
 
     // Check if user has enough tokens
     if (balance < episode.tokenCost) {
-      alert(`Not enough coins! You need ${episode.tokenCost} coins but only have ${balance}.`);
-      // TODO: Show earn/purchase coins modal
+      setPendingUnlockEpisodeId(episodeId);
+      setBuyModalOpen(true);
       return;
     }
 
@@ -133,6 +136,25 @@ export default function FeedPage() {
   return (
     <div className="relative">
       {isAuthenticated && <TokenBalance />}
+
+      <BuyCoinsModal
+        open={buyModalOpen}
+        onClose={() => {
+          setBuyModalOpen(false);
+          setPendingUnlockEpisodeId(null);
+        }}
+        onPurchased={(newBalance) => {
+          updateBalance(newBalance);
+          setBuyModalOpen(false);
+
+          const toUnlock = pendingUnlockEpisodeId;
+          setPendingUnlockEpisodeId(null);
+
+          if (toUnlock && !unlockMutation.isPending) {
+            unlockMutation.mutate(toUnlock);
+          }
+        }}
+      />
       
       <FeedScroll
         episodes={episodes}

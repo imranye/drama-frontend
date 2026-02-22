@@ -83,6 +83,25 @@ export interface UnlockResponse {
   nextEpisodeId?: string;
 }
 
+export type SolanaCluster = 'devnet' | 'mainnet-beta';
+
+export interface SolanaTopUpIntentResponse {
+  intentId: string;
+  cluster: SolanaCluster;
+  treasury: string;
+  lamports: number;
+  coins: number;
+  memo: string;
+  expiresAt: number;
+}
+
+export interface SolanaTopUpConfirmResponse {
+  success: boolean;
+  signature: string;
+  balance: number;
+  transaction?: string;
+}
+
 export interface PlaybackRequest {
   userId: string;
   episodeId: string;

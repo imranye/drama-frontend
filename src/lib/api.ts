@@ -12,6 +12,8 @@ import type {
   TokenBalance,
   UnlockRequest,
   UnlockResponse,
+  SolanaTopUpIntentResponse,
+  SolanaTopUpConfirmResponse,
 } from '@/types';
 
 const API_URL = (
@@ -118,6 +120,21 @@ class ApiClient {
     return this.request<UnlockResponse>('/unlock', {
       method: 'POST',
       body: JSON.stringify(request),
+    });
+  }
+
+  // Payments: Solana SOL → coin top-up
+  async createSolanaTopUpIntent(): Promise<SolanaTopUpIntentResponse> {
+    return this.request<SolanaTopUpIntentResponse>('/payments/solana/intent', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  async confirmSolanaTopUpIntent(intentId: string, signature: string): Promise<SolanaTopUpConfirmResponse> {
+    return this.request<SolanaTopUpConfirmResponse>('/payments/solana/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ intentId, signature }),
     });
   }
 
