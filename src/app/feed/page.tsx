@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FeedScroll } from '@/components/feed-scroll';
@@ -15,7 +15,7 @@ export default function FeedPage() {
   const queryClient = useQueryClient();
   const { isAuthenticated, user, balance, updateBalance } = useAuthStore();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedStoryId] = useState('story-1'); // Default story for MVP
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
   const [optimisticUnlocked, setOptimisticUnlocked] = useState<Set<string>>(() => new Set());
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [pendingUnlockEpisodeId, setPendingUnlockEpisodeId] = useState<string | null>(null);
@@ -23,23 +23,37 @@ export default function FeedPage() {
   // Public preview: we don't require a guest JWT for episode 1.
   const playbackUserId = user?.userId ?? 'public';
 
+  // Load the first available story.
+  const { data: content } = useQuery({
+    queryKey: queryKeys.content('trending', 0),
+    queryFn: () => apiClient.getContent('trending', 20, 0),
+  });
+
+  useEffect(() => {
+    if (selectedStoryId) return;
+    const first = content?.stories?.[0]?.storyId;
+    if (first) setSelectedStoryId(first);
+  }, [content?.stories, selectedStoryId]);
+
   // Fetch story episodes
   const { data: episodes, isLoading: loadingEpisodes } = useQuery({
-    queryKey: queryKeys.episodes(selectedStoryId),
-    queryFn: () => apiClient.getStoryEpisodes(selectedStoryId),
+    queryKey: queryKeys.episodes(selectedStoryId || 'none'),
+    queryFn: () => apiClient.getStoryEpisodes(selectedStoryId!),
+    enabled: Boolean(selectedStoryId),
   });
 
   // Fetch story details
   const { data: story } = useQuery({
-    queryKey: queryKeys.story(selectedStoryId),
-    queryFn: () => apiClient.getStory(selectedStoryId),
+    queryKey: queryKeys.story(selectedStoryId || 'none'),
+    queryFn: () => apiClient.getStory(selectedStoryId!),
+    enabled: Boolean(selectedStoryId),
   });
 
   // Fetch narrative (unlocked episodes). Backend will auto-init if missing.
   const { data: narrative } = useQuery({
-    queryKey: queryKeys.narrative(selectedStoryId),
-    queryFn: () => apiClient.getNarrativeState(selectedStoryId),
-    enabled: isAuthenticated,
+    queryKey: queryKeys.narrative(selectedStoryId || 'none'),
+    queryFn: () => apiClient.getNarrativeState(selectedStoryId!),
+    enabled: isAuthenticated && Boolean(selectedStoryId),
   });
 
   const unlockedEpisodeIds = useMemo(() => {
@@ -58,7 +72,7 @@ export default function FeedPage() {
 
       const request: UnlockRequest = {
         userId: user.userId,
-        storyId: selectedStoryId,
+        storyId: selectedStoryId!,
         episodeId,
         tokensToSpend: episode.tokenCost,
       };
@@ -77,7 +91,9 @@ export default function FeedPage() {
         return next;
       });
 
-      queryClient.invalidateQueries({ queryKey: queryKeys.narrative(selectedStoryId) });
+      if (selectedStoryId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.narrative(selectedStoryId) });
+      }
       
       // Optionally show success message
       console.log('Episode unlocked successfully');
@@ -113,6 +129,14 @@ export default function FeedPage() {
   };
 
   if (loadingEpisodes) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
+      </div>
+    );
+  }
+
+  if (!selectedStoryId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
