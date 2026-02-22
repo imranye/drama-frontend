@@ -5,16 +5,16 @@ import { useAuthStore } from '@/lib/store';
 import { motion } from 'framer-motion';
 
 export function TokenBalance() {
-  const { balance, fetchBalance } = useAuthStore();
+  const { balance, fetchBalance, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    // Fetch balance on mount
+    if (!isAuthenticated) return;
     fetchBalance();
-
-    // Poll balance every 30 seconds
     const interval = setInterval(fetchBalance, 30000);
     return () => clearInterval(interval);
-  }, [fetchBalance]);
+  }, [fetchBalance, isAuthenticated]);
+
+  if (!isAuthenticated) return null;
 
   return (
     <motion.div
