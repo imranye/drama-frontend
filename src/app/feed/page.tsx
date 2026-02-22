@@ -71,127 +71,92 @@ export default function FeedPage() {
       if (!episode) throw new Error('Episode not found');
 
       const request: UnlockRequest = {
-        userId: user.userId,
         storyId: selectedStoryId!,
         episodeId,
-        tokensToSpend: episode.tokenCost,
+        unlockCost: episode.unlockCost,
       };
-
       return apiClient.unlockEpisode(request);
     },
+    onMutate: async (episodeId: string) => {
+      setOptimisticUnlocked((prev) => new Set(prev).add(episodeId));
+    },
     onSuccess: (data) => {
-      // Update balance after successful unlock
-      if (typeof data.remainingTokens === 'number') {
-        updateBalance(data.remainingTokens);
-      }
-
+      updateBalance(data.newBalance);
+      queryClient.invalidateQueries({ queryKey: queryKeys.narrative(selectedStoryId || 'none') });
+    },
+    onError: (error: any, episodeId: string) => {
       setOptimisticUnlocked((prev) => {
         const next = new Set(prev);
-        next.add(data.episodeId);
+        next.delete(episodeId);
         return next;
       });
 
-      if (selectedStoryId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.narrative(selectedStoryId) });
+      if (error?.response?.status === 402 || error?.message?.includes('Insufficient')) {
+        setPendingUnlockEpisodeId(episodeId);
+        setBuyModalOpen(true);
       }
-      
-      // Optionally show success message
-      console.log('Episode unlocked successfully');
-    },
-    onError: (error) => {
-      console.error('Failed to unlock episode:', error);
-      alert(error instanceof Error ? error.message : 'Failed to unlock episode');
     },
   });
 
-  const handleUnlock = (episodeId: string) => {
+  const handleUnlock = async (episodeId: string) => {
     if (!isAuthenticated) {
-      router.push('/login');
+      router.push('/auth/login');
       return;
     }
 
-    if (!user) return;
-
-    const episode = episodes?.find((e) => e.episodeId === episodeId);
-    if (!episode) return;
-
-    // Check if user has enough tokens
-    if (balance < episode.tokenCost) {
-      setPendingUnlockEpisodeId(episodeId);
-      setBuyModalOpen(true);
-      return;
-    }
-
-    // Confirm unlock
-    if (window.confirm(`Unlock this episode for ${episode.tokenCost} coins?`)) {
-      unlockMutation.mutate(episodeId);
+    try {
+      await unlockMutation.mutateAsync(episodeId);
+    } catch (error) {
+      console.error('Failed to unlock episode:', error);
     }
   };
 
-  if (loadingEpisodes) {
+  if (!selectedStoryId || loadingEpisodes) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
-      </div>
-    );
-  }
-
-  if (!selectedStoryId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-none animate-spin" />
-      </div>
-    );
-  }
-
-  if (!episodes || episodes.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <p className="text-text-secondary">No episodes available</p>
-          <button onClick={() => router.push('/')} className="btn-primary">
-            Go Home
-          </button>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading feed...</div>
       </div>
     );
   }
 
   return (
-    <div className="relative">
-      {isAuthenticated && <TokenBalance />}
+    <>
+      <div className="h-screen w-full overflow-hidden relative">
+        {/* Token balance overlay */}
+        {isAuthenticated && (
+          <div className="absolute top-6 right-6 z-10">
+            <TokenBalance
+              balance={balance}
+              onClick={() => setBuyModalOpen(true)}
+            />
+          </div>
+        )}
+
+        {/* Episode feed */}
+        <FeedScroll
+          episodes={episodes || []}
+          story={story}
+          userId={playbackUserId}
+          freeEpisodeCount={3}
+          requireLoginForLockedEpisodes={!isAuthenticated}
+          currentIndex={currentIndex}
+          onIndexChange={setCurrentIndex}
+          unlockedEpisodeIds={unlockedEpisodeIds}
+          onUnlock={handleUnlock}
+        />
+      </div>
 
       <BuyCoinsModal
         open={buyModalOpen}
-        onClose={() => {
-          setBuyModalOpen(false);
-          setPendingUnlockEpisodeId(null);
-        }}
-        onPurchased={(newBalance) => {
+        onOpenChange={setBuyModalOpen}
+        onSuccess={(newBalance) => {
           updateBalance(newBalance);
-          setBuyModalOpen(false);
-
-          const toUnlock = pendingUnlockEpisodeId;
-          setPendingUnlockEpisodeId(null);
-
-          if (toUnlock && !unlockMutation.isPending) {
-            unlockMutation.mutate(toUnlock);
+          if (pendingUnlockEpisodeId) {
+            handleUnlock(pendingUnlockEpisodeId);
+            setPendingUnlockEpisodeId(null);
           }
         }}
       />
-      
-      <FeedScroll
-        episodes={episodes}
-        story={story || { storyId: selectedStoryId, title: 'Loading...', description: '', thumbnailUrl: '', episodeCount: episodes.length, totalDuration: 0, genres: [], trending: false }}
-        userId={playbackUserId}
-        freeEpisodeCount={3}
-        unlockedEpisodeIds={unlockedEpisodeIds}
-        requireLoginForLockedEpisodes={!isAuthenticated}
-        currentIndex={currentIndex}
-        onIndexChange={setCurrentIndex}
-        onUnlock={handleUnlock}
-        isReady={true}
-      />
-    </div>
+    </>
   );
 }
