@@ -12,6 +12,7 @@ import {
 import { Buffer } from 'buffer';
 
 import { apiClient } from '@/lib/api';
+import type { StripePackId } from '@/types';
 
 const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 
@@ -32,6 +33,7 @@ export function BuyCoinsModal(props: {
   const { connection } = useConnection();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState<StripePackId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canBuy = connected && publicKey && !isLoading;
@@ -76,6 +78,21 @@ export function BuyCoinsModal(props: {
     return 'Buy 10 coins for 0.01 SOL';
   }, []);
 
+  const buyWithStripe = useCallback(
+    async (packId: StripePackId) => {
+      setError(null);
+      setIsStripeLoading(packId);
+      try {
+        const { url } = await apiClient.createStripeCheckout(packId);
+        window.location.href = url;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to start Stripe checkout');
+        setIsStripeLoading(null);
+      }
+    },
+    []
+  );
+
   if (!open) return null;
 
   return (
@@ -108,6 +125,36 @@ export function BuyCoinsModal(props: {
           >
             {isLoading ? 'Processing…' : priceLabel}
           </button>
+
+          <div className="pt-2 border-t border-surface-light">
+            <div className="text-sm font-medium">Or buy with card</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button
+                className="btn-secondary w-full disabled:opacity-60"
+                disabled={Boolean(isLoading || isStripeLoading)}
+                onClick={() => buyWithStripe('coins_10')}
+              >
+                {isStripeLoading === 'coins_10' ? 'Loading…' : '10'}
+              </button>
+              <button
+                className="btn-secondary w-full disabled:opacity-60"
+                disabled={Boolean(isLoading || isStripeLoading)}
+                onClick={() => buyWithStripe('coins_50')}
+              >
+                {isStripeLoading === 'coins_50' ? 'Loading…' : '50'}
+              </button>
+              <button
+                className="btn-secondary w-full disabled:opacity-60"
+                disabled={Boolean(isLoading || isStripeLoading)}
+                onClick={() => buyWithStripe('coins_100')}
+              >
+                {isStripeLoading === 'coins_100' ? 'Loading…' : '100'}
+              </button>
+            </div>
+            <div className="mt-2 text-xs text-text-secondary">
+              Apple Pay / Google Pay will appear automatically in Stripe Checkout when available.
+            </div>
+          </div>
 
           {error && <div className="text-sm text-red-400">{error}</div>}
 

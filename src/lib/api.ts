@@ -14,6 +14,8 @@ import type {
   UnlockResponse,
   SolanaTopUpIntentResponse,
   SolanaTopUpConfirmResponse,
+  StripeCheckoutResponse,
+  StripePackId,
 } from '@/types';
 
 const API_URL = (
@@ -135,6 +137,14 @@ class ApiClient {
     return this.request<SolanaTopUpConfirmResponse>('/payments/solana/confirm', {
       method: 'POST',
       body: JSON.stringify({ intentId, signature }),
+    });
+  }
+
+  // Payments: Stripe Checkout
+  async createStripeCheckout(packId: StripePackId): Promise<StripeCheckoutResponse> {
+    return this.request<StripeCheckoutResponse>('/payments/stripe/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ packId }),
     });
   }
 

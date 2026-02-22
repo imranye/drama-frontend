@@ -102,6 +102,12 @@ export interface SolanaTopUpConfirmResponse {
   transaction?: string;
 }
 
+export type StripePackId = 'coins_10' | 'coins_50' | 'coins_100';
+
+export interface StripeCheckoutResponse {
+  url: string;
+}
+
 export interface PlaybackRequest {
   userId: string;
   episodeId: string;
