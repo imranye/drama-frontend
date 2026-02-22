@@ -119,12 +119,20 @@ export function FeedScroll({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="h-screen overflow-y-scroll snap-container hide-scrollbar"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="relative h-screen bg-black">
+      {story.thumbnailUrl && (
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center blur-2xl opacity-20"
+          style={{ backgroundImage: `url(${story.thumbnailUrl})` }}
+        />
+      )}
+
+      <div
+        ref={containerRef}
+        className="relative h-screen overflow-y-scroll snap-container hide-scrollbar"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
       {episodes.map((episode, index) => (
         <div
           key={episode.episodeId}
@@ -152,6 +160,7 @@ export function FeedScroll({
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }
