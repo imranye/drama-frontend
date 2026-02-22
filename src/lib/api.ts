@@ -16,6 +16,8 @@ import type {
   SolanaTopUpConfirmResponse,
   StripeCheckoutResponse,
   StripePackId,
+  WalletNonceResponse,
+  WalletVerifyResponse,
 } from '@/types';
 
 const API_URL = (
@@ -145,6 +147,24 @@ class ApiClient {
     return this.request<StripeCheckoutResponse>('/payments/stripe/checkout', {
       method: 'POST',
       body: JSON.stringify({ packId }),
+    });
+  }
+
+  // Auth: wallet login (Solana)
+  async getWalletLoginNonce(): Promise<WalletNonceResponse> {
+    return this.request<WalletNonceResponse>('/auth/wallet/nonce', {
+      method: 'POST',
+    });
+  }
+
+  async verifyWalletLogin(args: {
+    publicKey: string;
+    signature: string; // base64
+    nonce: string;
+  }): Promise<WalletVerifyResponse> {
+    return this.request<WalletVerifyResponse>('/auth/wallet/verify', {
+      method: 'POST',
+      body: JSON.stringify(args),
     });
   }
 

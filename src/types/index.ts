@@ -108,6 +108,17 @@ export interface StripeCheckoutResponse {
   url: string;
 }
 
+export interface WalletNonceResponse {
+  nonce: string;
+  message: string;
+}
+
+export interface WalletVerifyResponse {
+  token: string;
+  userId: string;
+  expiresAt: number;
+}
+
 export interface PlaybackRequest {
   userId: string;
   episodeId: string;

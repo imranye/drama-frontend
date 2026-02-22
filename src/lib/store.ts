@@ -16,6 +16,7 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
+  loginWithWallet: (publicKey: string, signMessage: (message: Uint8Array) => Promise<Uint8Array>) => Promise<void>;
   logout: () => void;
   setToken: (token: string, user: User) => void;
   updateBalance: (balance: number) => void;
@@ -73,6 +74,32 @@ export const useAuthStore = create<AuthState>()(
           await get().fetchBalance();
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Login failed';
+          set({ error: message, isLoading: false });
+          throw error;
+        }
+      },
+
+      loginWithWallet: async (publicKey: string, signMessage) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { nonce, message } = await apiClient.getWalletLoginNonce();
+          const sigBytes = await signMessage(new TextEncoder().encode(message));
+          const signature = btoa(String.fromCharCode(...sigBytes));
+
+          const res = await apiClient.verifyWalletLogin({ publicKey, signature, nonce });
+
+          const user: User = {
+            userId: res.userId,
+            email: `wallet:${publicKey}`,
+            createdAt: Date.now(),
+            lastActive: Date.now(),
+          };
+
+          apiClient.setToken(res.token);
+          set({ user, token: res.token, isAuthenticated: true, isLoading: false });
+          await get().fetchBalance();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Wallet login failed';
           set({ error: message, isLoading: false });
           throw error;
         }

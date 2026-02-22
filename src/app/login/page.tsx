@@ -3,10 +3,13 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithWallet, isLoading, error, clearError } = useAuthStore();
+  const { publicKey, connected, signMessage } = useWallet();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -21,6 +24,13 @@ export default function LoginPage() {
       // Error is handled by store
       console.error('Login failed:', err);
     }
+  };
+
+  const handleWalletLogin = async () => {
+    if (!connected || !publicKey || !signMessage) return;
+    clearError();
+    await loginWithWallet(publicKey.toBase58(), signMessage);
+    router.push('/feed');
   };
 
   return (
@@ -86,6 +96,19 @@ export default function LoginPage() {
             {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        {/* Wallet Login */}
+        <div className="space-y-3">
+          <div className="text-center text-text-secondary text-sm">Or sign in with your wallet</div>
+          <WalletMultiButton className="btn-secondary w-full justify-center" />
+          <button
+            onClick={handleWalletLogin}
+            disabled={!connected || !publicKey || !signMessage || isLoading}
+            className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Signing in...' : 'Sign in with Solana'}
+          </button>
+        </div>
 
         {/* Demo credentials hint */}
         <div className="text-center text-text-secondary text-sm space-y-2">
