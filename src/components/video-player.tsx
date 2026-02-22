@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Episode } from '@/types';
 import { useVideoPlayerStore } from '@/lib/store';
-import { api as apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 interface VideoPlayerProps {
   episode: Episode;
@@ -205,7 +205,7 @@ export function VideoPlayer({
             </div>
             
             <h3 className="text-2xl font-bold text-white mb-3">
-              Episode {episode.episodeNumber}
+              Episode {episode.sequenceNumber}
             </h3>
             <p className="text-white/80 mb-6 max-w-sm">
               {requireLoginForLockedEpisode 
@@ -321,7 +321,7 @@ export function VideoPlayer({
 
               {/* Episode Number */}
               <div className="text-white font-semibold">
-                EP {episode.episodeNumber}
+                EP {episode.sequenceNumber}
               </div>
             </div>
           </motion.div>

@@ -24,12 +24,21 @@ function memoInstruction(memo: string, payer: PublicKey): TransactionInstruction
   });
 }
 
-export function BuyCoinsModal(props: {
-  open: boolean;
-  onClose: () => void;
-  onPurchased: (newBalance: number) => void;
-}) {
-  const { open, onClose, onPurchased } = props;
+export function BuyCoinsModal(props:
+  | {
+      open: boolean;
+      onClose: () => void;
+      onPurchased: (newBalance: number) => void;
+    }
+  | {
+      isOpen: boolean;
+      onClose: () => void;
+      onSuccess: () => void;
+    }) {
+  const open = 'open' in props ? props.open : props.isOpen;
+  const onClose = props.onClose;
+  const onPurchased =
+    'onPurchased' in props ? props.onPurchased : () => props.onSuccess();
   const { connection } = useConnection();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isLoading, setIsLoading] = useState(false);

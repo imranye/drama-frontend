@@ -1,14 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FeedScroll } from '@/components/feed-scroll';
-import { TokenBalance } from '@/components/token-balance';
-import { BuyCoinsModal } from '@/components/buy-coins-modal';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import { apiClient, queryKeys } from '@/lib/api';
-import type { UnlockRequest } from '@/types';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -40,16 +36,7 @@ function FeedError({ message, onRetry }: { message: string; onRetry: () => void 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function FeedPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { isAuthenticated, user, balance, updateBalance } = useAuthStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
-  const [optimisticUnlocked, setOptimisticUnlocked] = useState<Set<string>>(() => new Set());
-  const [buyModalOpen, setBuyModalOpen] = useState(false);
-  const [pendingUnlockEpisodeId, setPendingUnlockEpisodeId] = useState<string | null>(null);
-
-  // Public preview: guests use 'public' as userId
-  const playbackUserId = user?.userId ?? 'public';
+  const { isAuthenticated } = useAuthStore();
 
   // Load trending content
   const {
@@ -63,179 +50,58 @@ export default function FeedPage() {
     queryFn: () => apiClient.getContent('trending', 0),
   });
 
-  // Load user data for unlocks if authenticated
-  const {
-    data: userData,
-    isLoading: loadingUser,
-    refetch: refetchUser,
-  } = useQuery({
-    queryKey: isAuthenticated ? queryKeys.user() : ['no-user'],
-    queryFn: isAuthenticated ? apiClient.getUser : async () => null,
-    enabled: isAuthenticated,
-  });
-
-  // Single story for FeedPage
-  const story = useMemo(() => content?.stories?.[0], [content]);
-  const storyId = story?.storyId;
-
-  // Persist auto‑unlocked episodes across login
-  useEffect(() => {
-    if (!story) return;
-    const key = `story-${storyId}-unlocked`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        setOptimisticUnlocked(new Set(JSON.parse(stored)));
-      } catch {}
-    }
-  }, [story, storyId]);
-
-  // Fetch episodes for the single feed
-  const {
-    data: episodesData,
-    isLoading: loadingEpisodes,
-    isError: episodesError,
-    error: episodesErrorMsg,
-    refetch: refetchEpisodes,
-  } = useQuery({
-    queryKey: story ? queryKeys.episodes(story.storyId, playbackUserId) : ['no-story'],
-    queryFn: () =>
-      apiClient.getEpisodes({
-        storyId: story!.storyId,
-        userId: playbackUserId,
-      }),
-    enabled: Boolean(story),
-  });
-
-  const episodes = useMemo(() => episodesData?.episodes ?? [], [episodesData]);
-
-  const unlockedEpisodeIds = useMemo(() => {
-    const fromServer = new Set(
-      episodes.filter((ep) => ep.unlocked).map((ep) => ep.episodeId)
-    );
-    return new Set([...fromServer, ...optimisticUnlocked]);
-  }, [episodes, optimisticUnlocked]);
-
-  // Unlock mutation
-  const unlockMutation = useMutation<
-    { unlocked: boolean; coinsUsed: number; newBalance: number },
-    Error,
-    UnlockRequest
-  >({
-    mutationFn: apiClient.unlock,
-    onMutate: async (req) => {
-      const eid = req.episodeId;
-      setOptimisticUnlocked((prev) => new Set(prev).add(eid));
-
-      const key = story ? `story-${story.storyId}-unlocked` : '';
-      if (key) {
-        const merged = new Set([...unlockedEpisodeIds, eid]);
-        localStorage.setItem(key, JSON.stringify([...merged]));
-      }
-    },
-    onSuccess: (data, req) => {
-      if (data.unlocked && data.newBalance != null) {
-        updateBalance(data.newBalance);
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.episodes(story!.storyId, playbackUserId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.user() });
-
-      setPendingUnlockEpisodeId(null);
-    },
-    onError: (err, req) => {
-      setOptimisticUnlocked((prev) => {
-        const next = new Set(prev);
-        next.delete(req.episodeId);
-        return next;
-      });
-      console.error('Failed to unlock:', err);
-      setPendingUnlockEpisodeId(null);
-    },
-  });
-
-  // Purchase success
-  const handlePurchaseSuccess = () => {
-    refetchUser();
-
-    if (pendingUnlockEpisodeId && story) {
-      unlockMutation.mutate({
-        episodeId: pendingUnlockEpisodeId,
-        storyId: story.storyId,
-        userId: user?.userId!,
-      });
-    }
-    setPendingUnlockEpisodeId(null);
-  };
-
-  // Unlock handler
-  const handleUnlock = (episodeId: string) => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-
-    if (!story || !user?.userId) return;
-
-    const episode = episodes.find((ep) => ep.episodeId === episodeId);
-    const cost = episode?.unlockCost ?? 50;
-
-    if (balance < cost) {
-      setPendingUnlockEpisodeId(episodeId);
-      setBuyModalOpen(true);
-      return;
-    }
-
-    unlockMutation.mutate({
-      episodeId,
-      storyId: story.storyId,
-      userId: user.userId,
-    });
-  };
-
   // Error states
   if (contentError) {
     const msg = contentErrorMsg instanceof Error ? contentErrorMsg.message : 'Could not load content';
     return <FeedError message={msg} onRetry={refetchContent} />;
   }
-  if (episodesError) {
-    const msg = episodesErrorMsg instanceof Error ? episodesErrorMsg.message : 'Could not load episodes';
-    return <FeedError message={msg} onRetry={refetchEpisodes} />;
+  if (loadingContent) {
+    return <FeedSkeleton />;
   }
 
-  // Loading states
-  if (loadingContent || loadingUser || !story) {
-    return <FeedSkeleton />;
+  const stories = content?.stories ?? [];
+  if (stories.length === 0) {
+    return <FeedError message="No stories available" onRetry={refetchContent} />;
   }
 
   return (
     <ErrorBoundary>
-      <div className="relative w-full h-screen overflow-hidden">
-        {isAuthenticated && (
-          <div className="absolute top-4 right-4 z-50">
-            <TokenBalance balance={balance} onBuyCoins={() => setBuyModalOpen(true)} />
+      <div className="min-h-screen bg-black p-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-semibold">Trending</h1>
+            {!isAuthenticated && (
+              <button className="btn-secondary" onClick={() => router.push('/login')}>
+                Sign in
+              </button>
+            )}
           </div>
-        )}
 
-        <FeedScroll
-          episodes={episodes}
-          story={story!}
-          userId={playbackUserId}
-          freeEpisodeCount={story?.freeEpisodeCount ?? 1}
-          unlockedEpisodeIds={unlockedEpisodeIds}
-          requireLoginForLockedEpisodes={!isAuthenticated}
-          currentIndex={currentIndex}
-          onIndexChange={setCurrentIndex}
-          onUnlock={handleUnlock}
-          isReady={!loadingEpisodes}
-        />
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+            {stories.map((s) => (
+              <button
+                key={s.storyId}
+                className="relative aspect-[3/4] overflow-hidden rounded-none border border-surface-light bg-surface text-left"
+                onClick={() => router.push(`/stories/${encodeURIComponent(s.storyId)}`)}
+              >
+                {s.thumbnailUrl ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url(${s.thumbnailUrl})` }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-b from-surface-light to-black" />
+                )}
 
-        {buyModalOpen && (
-          <BuyCoinsModal
-            isOpen={buyModalOpen}
-            onClose={() => setBuyModalOpen(false)}
-            onSuccess={handlePurchaseSuccess}
-          />
-        )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                <div className="absolute bottom-0 p-3">
+                  <div className="text-sm font-semibold">{s.title}</div>
+                  <div className="text-xs text-text-secondary line-clamp-2">{s.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </ErrorBoundary>
   );

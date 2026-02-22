@@ -20,6 +20,9 @@ export interface Episode {
   thumbnailUrl?: string;
   videoUrl?: string;
   tokenCost: number;
+  // Client-derived fields used by newer feed UI
+  unlocked?: boolean;
+  unlockCost?: number;
   storyWeight: number;
   createdAt: number;
 }
