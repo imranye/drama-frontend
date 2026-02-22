@@ -119,28 +119,29 @@ class ApiClient {
     return this.request<TokenBalance>('/tokens/balance');
   }
 
-  async unlockEpisode(request: UnlockRequest): Promise<UnlockResponse> {
-    return this.request<UnlockResponse>('/unlock', {
+  async unlockEpisode(episodeId: string): Promise<UnlockResponse> {
+    return this.request<UnlockResponse>('/tokens/unlock', {
       method: 'POST',
-      body: JSON.stringify(request),
+      body: JSON.stringify({ episodeId }),
     });
   }
 
-  // Payment - Solana
-  async createSolanaTopUpIntent(): Promise<SolanaTopUpIntentResponse> {
-    return this.request<SolanaTopUpIntentResponse>('/payments/solana/topup', {
+  // Solana Payments
+  async createSolanaTopUp(tokens: number): Promise<SolanaTopUpIntentResponse> {
+    return this.request<SolanaTopUpIntentResponse>('/payments/solana/intent', {
       method: 'POST',
+      body: JSON.stringify({ tokens }),
     });
   }
 
-  async confirmSolanaTopUpIntent(intentId: string, signature: string): Promise<SolanaTopUpConfirmResponse> {
+  async confirmSolanaTopUp(signature: string): Promise<SolanaTopUpConfirmResponse> {
     return this.request<SolanaTopUpConfirmResponse>('/payments/solana/confirm', {
       method: 'POST',
-      body: JSON.stringify({ intentId, signature }),
+      body: JSON.stringify({ signature }),
     });
   }
 
-  // Payment - Stripe
+  // Stripe Payments
   async createStripeCheckout(packId: StripePackId): Promise<StripeCheckoutResponse> {
     return this.request<StripeCheckoutResponse>('/payments/stripe/checkout', {
       method: 'POST',
@@ -148,22 +149,36 @@ class ApiClient {
     });
   }
 
-  // Wallet authentication
-  async getWalletNonce(walletAddress: string): Promise<WalletNonceResponse> {
+  // Wallet Authentication
+  async getNonce(publicKey: string): Promise<WalletNonceResponse> {
     return this.request<WalletNonceResponse>('/auth/wallet/nonce', {
       method: 'POST',
-      body: JSON.stringify({ walletAddress }),
+      body: JSON.stringify({ publicKey }),
     });
   }
 
   async verifyWallet(
-    walletAddress: string,
-    signature: string,
-    message: string
+    publicKey: string,
+    signature: string
   ): Promise<WalletVerifyResponse> {
     return this.request<WalletVerifyResponse>('/auth/wallet/verify', {
       method: 'POST',
-      body: JSON.stringify({ walletAddress, signature, message }),
+      body: JSON.stringify({ publicKey, signature }),
+    });
+  }
+
+  // Progress Tracking
+  async getNarrativeState(storyId: string): Promise<NarrativeState> {
+    return this.request<NarrativeState>(`/narrative/${storyId}/state`);
+  }
+
+  async updateNarrativeState(
+    storyId: string,
+    state: Partial<NarrativeState>
+  ): Promise<NarrativeState> {
+    return this.request<NarrativeState>(`/narrative/${storyId}/state`, {
+      method: 'PUT',
+      body: JSON.stringify(state),
     });
   }
 
@@ -174,22 +189,8 @@ class ApiClient {
       body: JSON.stringify({ events }),
     });
   }
-
-  // Narrative State
-  async getNarrativeState(userId: string, storyId: string): Promise<NarrativeState> {
-    return this.request<NarrativeState>(`/narrative/${userId}/${storyId}`);
-  }
-
-  async updateNarrativeState(
-    userId: string,
-    storyId: string,
-    state: Partial<NarrativeState>
-  ): Promise<NarrativeState> {
-    return this.request<NarrativeState>(`/narrative/${userId}/${storyId}`, {
-      method: 'PUT',
-      body: JSON.stringify(state),
-    });
-  }
 }
 
-export const apiClient = new ApiClient(API_URL);
+// Export singleton instance
+export const api = new ApiClient(API_URL);
+export default api;
