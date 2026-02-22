@@ -116,10 +116,9 @@ class ApiClient {
 
   // Token Management
   async getBalance(): Promise<TokenBalance> {
-    return this.request<TokenBalance>('/balance');
+    return this.request<TokenBalance>('/tokens/balance');
   }
 
-  // Unlock Episode
   async unlockEpisode(request: UnlockRequest): Promise<UnlockResponse> {
     return this.request<UnlockResponse>('/unlock', {
       method: 'POST',
@@ -127,11 +126,10 @@ class ApiClient {
     });
   }
 
-  // Payments: Solana SOL → coin top-up
+  // Payment - Solana
   async createSolanaTopUpIntent(): Promise<SolanaTopUpIntentResponse> {
-    return this.request<SolanaTopUpIntentResponse>('/payments/solana/intent', {
+    return this.request<SolanaTopUpIntentResponse>('/payments/solana/topup', {
       method: 'POST',
-      body: JSON.stringify({}),
     });
   }
 
@@ -142,7 +140,7 @@ class ApiClient {
     });
   }
 
-  // Payments: Stripe Checkout
+  // Payment - Stripe
   async createStripeCheckout(packId: StripePackId): Promise<StripeCheckoutResponse> {
     return this.request<StripeCheckoutResponse>('/payments/stripe/checkout', {
       method: 'POST',
@@ -150,52 +148,48 @@ class ApiClient {
     });
   }
 
-  // Auth: wallet login (Solana)
-  async getWalletLoginNonce(): Promise<WalletNonceResponse> {
+  // Wallet authentication
+  async getWalletNonce(walletAddress: string): Promise<WalletNonceResponse> {
     return this.request<WalletNonceResponse>('/auth/wallet/nonce', {
       method: 'POST',
+      body: JSON.stringify({ walletAddress }),
     });
   }
 
-  async verifyWalletLogin(args: {
-    publicKey: string;
-    signature: string; // base64
-    nonce: string;
-  }): Promise<WalletVerifyResponse> {
+  async verifyWallet(
+    walletAddress: string,
+    signature: string,
+    message: string
+  ): Promise<WalletVerifyResponse> {
     return this.request<WalletVerifyResponse>('/auth/wallet/verify', {
       method: 'POST',
-      body: JSON.stringify(args),
+      body: JSON.stringify({ walletAddress, signature, message }),
+    });
+  }
+
+  // Telemetry
+  async sendTelemetry(events: TelemetryEvent[]): Promise<void> {
+    await this.request<void>('/telemetry', {
+      method: 'POST',
+      body: JSON.stringify({ events }),
     });
   }
 
   // Narrative State
-  async getNarrativeState(storyId: string): Promise<NarrativeState> {
-    const params = new URLSearchParams({ storyId });
-    return this.request<NarrativeState>(`/narrative?${params}`);
+  async getNarrativeState(userId: string, storyId: string): Promise<NarrativeState> {
+    return this.request<NarrativeState>(`/narrative/${userId}/${storyId}`);
   }
 
-  // Telemetry
-  async sendTelemetry(event: TelemetryEvent): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>('/telemetry', {
-      method: 'POST',
-      body: JSON.stringify(event),
+  async updateNarrativeState(
+    userId: string,
+    storyId: string,
+    state: Partial<NarrativeState>
+  ): Promise<NarrativeState> {
+    return this.request<NarrativeState>(`/narrative/${userId}/${storyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(state),
     });
-  }
-
-  // Health Check
-  async healthCheck(): Promise<{ status: string; version: string }> {
-    return this.request<{ status: string; version: string }>('/health');
   }
 }
 
 export const apiClient = new ApiClient(API_URL);
-
-// React Query helpers
-export const queryKeys = {
-  content: (type: string, offset: number) => ['content', type, offset] as const,
-  story: (storyId: string) => ['story', storyId] as const,
-  episodes: (storyId: string) => ['episodes', storyId] as const,
-  balance: () => ['balance'] as const,
-  narrative: (storyId: string) => ['narrative', storyId] as const,
-  playback: (episodeId: string) => ['playback', episodeId] as const,
-};
