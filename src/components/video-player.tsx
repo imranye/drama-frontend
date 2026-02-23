@@ -139,7 +139,26 @@ export function VideoPlayer({
     if (isLocked) {
       onUnlock();
     } else {
-      setPlaying(!isPlaying);
+      const video = videoRef.current;
+      if (!video) {
+        setPlaying(!isPlaying);
+        return;
+      }
+
+      if (video.paused) {
+        video
+          .play()
+          .then(() => setPlaying(true))
+          .catch(() => {
+            // Some browsers require muted playback unless play() is called directly in a user gesture.
+            setMuted(true);
+            video.muted = true;
+            video.play().then(() => setPlaying(true)).catch(console.error);
+          });
+      } else {
+        video.pause();
+        setPlaying(false);
+      }
     }
   };
 
@@ -168,6 +187,7 @@ export function VideoPlayer({
           ref={videoRef}
           src={videoUrl}
           className="w-full h-full object-cover"
+          preload="metadata"
           playsInline
           loop={false}
         />
